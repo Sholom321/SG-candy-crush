@@ -1,0 +1,1008 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Candy Crush Extreme</title>
+  <link rel="icon" type="image/png" href="images/favicon.png">
+  <style>
+    :root {
+      --cell-size: 60px;
+      --cols: 11;
+      --rows: 11;
+      --board-width: calc(var(--cols) * var(--cell-size));
+      --board-height: calc(var(--rows) * var(--cell-size));
+      --primary-gradient: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+      --glass: rgba(255, 255, 255, 0.1);
+      --glass-heavy: rgba(255, 255, 255, 0.2);
+      --accent: #00f2fe;
+      --bg: #050a1a; 
+      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: #fff;
+      overflow: hidden;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+    }
+
+    #star-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      background: radial-gradient(circle at bottom, #0f172a 0%, #020617 100%);
+    }
+
+    #particles {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 100;
+    }
+
+    .game-outer-wrapper {
+      position: relative;
+      padding: 10px;
+      border-radius: 40px;
+      background: linear-gradient(45deg, #001233, #0047ab, #00f2fe, #0047ab, #001233);
+      background-size: 400%;
+      z-index: 10;
+      animation: blue-glow 6s ease-in-out infinite;
+      box-shadow: 0 0 50px rgba(0, 242, 254, 0.4);
+    }
+
+    @keyframes blue-glow {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    .game-container {
+      display: flex;
+      gap: 30px;
+      padding: 30px;
+      background: rgba(10, 15, 30, 0.9);
+      backdrop-filter: blur(25px);
+      border-radius: 32px;
+      position: relative;
+      max-width: 98vw;
+    }
+
+    .board-side { position: relative; }
+
+    .board-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+      width: 100%;
+    }
+
+    .logo-img { 
+      width: 85px; 
+      height: 85px; 
+      object-fit: cover; 
+      border-radius: 20px; 
+      border: 2px solid var(--glass-heavy);
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+      order: 1;
+    }
+
+    .level-badge {
+      background: var(--primary-gradient);
+      padding: 10px 25px;
+      border-radius: 50px;
+      font-weight: 800;
+      font-size: 1.3rem;
+      box-shadow: 0 0 20px rgba(168, 85, 247, 0.4);
+      border: 1px solid rgba(255,255,255,0.3);
+      order: 2;
+    }
+
+    .bsd-text {
+      font-weight: 800;
+      font-size: 1.6rem;
+      color: var(--accent);
+      order: 3;
+      min-width: 85px;
+      text-align: right;
+    }
+
+    .board-wrapper {
+      position: relative;
+      padding: 4px;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    #board {
+      width: var(--board-width);
+      height: var(--board-height);
+      display: grid;
+      grid-template-columns: repeat(var(--cols), var(--cell-size));
+      grid-template-rows: repeat(var(--rows), var(--cell-size));
+      background: rgba(2, 6, 23, 0.85);
+      border-radius: 16px;
+      overflow: hidden;
+      border: 2px solid var(--glass-heavy);
+      box-shadow: inset 0 0 30px rgba(0,0,0,0.6);
+      touch-action: none;
+    }
+
+    .cell {
+      width: var(--cell-size);
+      height: var(--cell-size);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      position: relative;
+      transition: background 0.2s;
+    }
+
+    .cell:hover { background: var(--glass); }
+
+    .candy-img {
+      width: 85%;
+      height: 85%;
+      object-fit: contain;
+      filter: drop-shadow(0 4px 6px rgba(0,0,0,0.4));
+      pointer-events: none;
+      user-select: none;
+      transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .cell.selected .candy-img {
+      transform: scale(1.15);
+      filter: drop-shadow(0 0 15px var(--accent));
+    }
+
+    .ui-side {
+      width: 300px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .stat-card {
+      background: var(--glass);
+      padding: 22px;
+      border-radius: 24px;
+      border: 1px solid var(--glass);
+      text-align: center;
+    }
+
+    .stat-label {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: #94a3b8;
+      margin-bottom: 5px;
+    }
+
+    .stat-value { font-size: 2.5rem; font-weight: 900; font-variant-numeric: tabular-nums; }
+
+    .progress-container {
+      width: 100%;
+      height: 14px;
+      background: #1e293b;
+      border-radius: 10px;
+      margin-top: 10px;
+      overflow: hidden;
+    }
+
+    #progressBar {
+      width: 0%;
+      height: 100%;
+      background: var(--primary-gradient);
+      transition: width 0.3s ease;
+    }
+
+    .btn {
+      background: var(--glass);
+      border: 1px solid var(--glass-heavy);
+      color: white;
+      padding: 16px;
+      border-radius: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      width: 100%;
+      margin-bottom: 10px;
+      font-size: 1rem;
+    }
+
+    .btn:hover {
+      background: var(--primary-gradient);
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+    }
+
+    .sound-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 20px;
+      background: var(--glass);
+      border-radius: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(2, 6, 23, 0.95);
+      backdrop-filter: blur(15px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+    }
+
+    .modal-content {
+      background: var(--glass);
+      padding: 50px;
+      border-radius: 32px;
+      border: 1px solid var(--glass-heavy);
+      text-align: center;
+      max-width: 450px;
+    }
+
+    .victory-text {
+      font-size: 3.5rem;
+      font-weight: 900;
+      background: linear-gradient(to bottom, #fff, #94a3b8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 10px;
+    }
+
+    .pop-out { animation: popOut 0.3s forwards; }
+    @keyframes popOut {
+      0% { transform: scale(1); opacity: 1; }
+      100% { transform: scale(0); opacity: 0; }
+    }
+
+    @media (max-width: 1000px) {
+      .game-outer-wrapper { padding: 4px; border-radius: 20px; width: 100%; }
+      .game-container { flex-direction: column; padding: 15px; border-radius: 18px; width: 100%; height: auto; justify-content: flex-start; }
+      :root { --cell-size: 8.5vw; }
+      .ui-side { width: 100%; }
+      .board-side { width: 100%; display: flex; flex-direction: column; align-items: center; }
+    }
+  </style>
+</head>
+<body>
+
+  <canvas id="star-canvas"></canvas>
+  <canvas id="particles"></canvas>
+
+  <div class="game-outer-wrapper">
+    <div class="game-container">
+      <div class="board-side">
+        <div class="board-header">
+          <img src="images/logo.gif" class="logo-img" alt="logo" onerror="this.src='https://placehold.co/85x85?text=Logo'">
+          <div class="level-badge">LEVEL <span id="levelText">1</span> / 10</div>
+          <div class="bsd-text">בס"ד</div>
+        </div>
+        <div class="board-wrapper">
+          <div id="board"></div>
+        </div>
+      </div>
+
+      <div class="ui-side">
+        <div class="stat-card">
+          <div class="stat-label">Total Score</div>
+          <div class="stat-value" id="score">0</div>
+          <div class="progress-container">
+            <div id="progressBar"></div>
+          </div>
+          <div style="margin-top: 5px; font-size: 0.8rem; color: #94a3b8;">Target: <span id="targetText">15000</span></div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-label">Moves Left</div>
+          <div class="stat-value" id="moves">80</div>
+        </div>
+
+        <div class="sound-toggle" onclick="toggleSound()">
+          <span>Sound Effects</span>
+          <span id="soundStatus">ON</span>
+        </div>
+
+        <button class="btn" style="background: var(--primary-gradient)" id="shuffleBtn">Shuffle Board</button>
+        <button class="btn" id="newGameBtn">Restart Journey</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="gameModal" class="modal">
+    <div class="modal-content">
+      <div class="victory-text" id="modalTitle">LEVEL UP!</div>
+      <p id="modalMsg" style="color: #cbd5e1; font-size: 1.1rem;">Advancing to the next tier of excellence.</p>
+      <div class="stat-card" style="margin-bottom: 20px;">
+        <div class="stat-label">Final Score</div>
+        <div class="stat-value" id="modalScore">0</div>
+      </div>
+      <button class="btn" style="background: var(--primary-gradient)" id="modalBtn">CONTINUE</button>
+    </div>
+  </div>
+
+  <script>
+    // Starfield Background
+    const starCanvas = document.getElementById('star-canvas');
+    const sctx = starCanvas.getContext('2d');
+    let stars = [];
+
+    function initStars() {
+      starCanvas.width = window.innerWidth;
+      starCanvas.height = window.innerHeight;
+      stars = [];
+      const count = 1000;
+      for (let i = 0; i < count; i++) {
+        const isBig = Math.random() < 0.2; 
+        stars.push({
+          x: Math.random() * starCanvas.width,
+          y: Math.random() * starCanvas.height,
+          size: isBig ? (Math.random() * 3.5 + 2) : (Math.random() * 1.8 + 0.5), 
+          opacity: Math.random() * 0.9 + 0.1,
+          vx: (Math.random() - 0.5) * 0.12, 
+          vy: (Math.random() - 0.5) * 0.12,
+          twinkle: Math.random() * 0.04 + 0.01,
+          glow: isBig ? Math.random() * 18 + 10 : 0
+        });
+      }
+    }
+
+    function animateStars() {
+      sctx.clearRect(0, 0, starCanvas.width, starCanvas.height);
+      stars.forEach(s => {
+        s.x += s.vx;
+        s.y += s.vy;
+        if (s.y > starCanvas.height) s.y = 0;
+        if (s.y < 0) s.y = starCanvas.height;
+        if (s.x > starCanvas.width) s.x = 0;
+        if (s.x < 0) s.x = starCanvas.width;
+        s.opacity += s.twinkle;
+        if (s.opacity > 1 || s.opacity < 0.1) s.twinkle *= -1;
+        sctx.fillStyle = `rgba(255, 255, 255, ${s.opacity})`;
+        if (s.glow > 0) {
+            sctx.shadowBlur = s.glow * s.opacity;
+            sctx.shadowColor = 'white';
+        }
+        sctx.beginPath();
+        sctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+        sctx.fill();
+        sctx.shadowBlur = 0;
+      });
+      requestAnimationFrame(animateStars);
+    }
+    initStars();
+    animateStars();
+
+    // SOUND SYSTEM
+    let audioCtx = null;
+    let soundEnabled = true;
+
+    function initAudio() {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+
+    function toggleSound() {
+      soundEnabled = !soundEnabled;
+      document.getElementById('soundStatus').innerText = soundEnabled ? 'ON' : 'OFF';
+      initAudio();
+    }
+
+    function playSound(type, pitch = 1) {
+      if (!soundEnabled || !audioCtx) return;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      if (type === 'match') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(440 * pitch, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(880 * pitch, audioCtx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.2);
+      } else if (type === 'special-match') {
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(220 * pitch, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(1320 * pitch, audioCtx.currentTime + 0.4);
+        gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.5);
+      } else if (type === 'lightning') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(100, audioCtx.currentTime);
+        osc.frequency.linearRampToValueAtTime(1200, audioCtx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.3);
+      } else if (type === 'swap') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(330, audioCtx.currentTime);
+        osc.frequency.linearRampToValueAtTime(220, audioCtx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.1);
+      } else if (type === 'victory') {
+        const t = audioCtx.currentTime;
+        const notes = [523.25, 659.25, 783.99, 1046.50];
+        notes.forEach((freq, i) => {
+          const o = audioCtx.createOscillator();
+          const g = audioCtx.createGain();
+          o.connect(g); g.connect(audioCtx.destination);
+          o.type = 'sine';
+          o.frequency.setValueAtTime(freq, t + i * 0.15);
+          g.gain.setValueAtTime(0.1, t + i * 0.15);
+          g.gain.exponentialRampToValueAtTime(0.01, t + i * 0.15 + 0.6);
+          o.start(t + i * 0.15);
+          o.stop(t + i * 0.15 + 0.6);
+        });
+      }
+    }
+
+    const COLS = 11, ROWS = 11;
+    
+    const regularCandies = [
+      'images/candy1.png', 'images/candy2.png', 'images/candy3.png',
+      'images/candy4.png', 'images/candy5.png', 'images/candy6.png'
+    ];
+
+    const tierTwoCandies = [
+      'images/candy11.png', 'images/candy22.png', 'images/candy33.png',
+      'images/candy44.png', 'images/candy55.png', 'images/candy66.png'
+    ];
+    
+    const WILD_1 = 'images/candy all.png';
+    const WILD_2 = 'images/candy all2.png';
+    
+    let grid = [];
+    let selected = null;
+    let score = 0;
+    let movesLeft = 80;
+    let currentLevel = 1;
+    let targetPoints = 15000;
+    let isAnimating = false;
+    let isDragging = false;
+    let isModalOpen = false;
+
+    const boardEl = document.getElementById('board');
+    const scoreEl = document.getElementById('score');
+    const movesEl = document.getElementById('moves');
+    const levelEl = document.getElementById('levelText');
+    const targetEl = document.getElementById('targetText');
+    const progressBar = document.getElementById('progressBar');
+    const canvas = document.getElementById('particles');
+    const ctx = canvas.getContext('2d');
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      starCanvas.width = window.innerWidth;
+      starCanvas.height = window.innerHeight;
+      initStars();
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    let particles = [];
+    class Particle {
+      constructor(x, y, color, type = 'spark') {
+        this.x = x; this.y = y; this.color = color; this.type = type;
+        const angle = Math.random() * Math.PI * 2;
+        let speedMult = 1;
+        if (type === 'massive') speedMult = 2.5;
+        if (type === 'small') speedMult = 0.6;
+        if (type === 'grand-finale') speedMult = 4;
+
+        const speed = Math.random() * (type === 'confetti' ? 7 : (type === 'shiny' ? 11 : 15)) * speedMult;
+        this.vx = Math.cos(angle) * speed;
+        this.vy = Math.sin(angle) * speed;
+        this.alpha = 1;
+        this.size = type === 'confetti' ? Math.random() * 9 + 5 : Math.random() * 4.5 + 2;
+        this.decay = Math.random() * 0.01 + 0.005;
+        this.gravity = type === 'confetti' ? 0.08 : 0.15;
+        const shapeSeed = Math.random();
+        if (shapeSeed > 0.6) this.shape = 'star';
+        else if (shapeSeed > 0.3) this.shape = 'circle';
+        else this.shape = 'square';
+      }
+      draw() {
+        ctx.globalAlpha = this.alpha;
+        ctx.fillStyle = this.color;
+        if (this.type === 'shiny' || this.type === 'spark' || this.type === 'massive' || this.type === 'grand-finale') {
+          ctx.shadowBlur = 15;
+          ctx.shadowColor = this.color;
+        }
+        ctx.beginPath();
+        if(this.type === 'confetti') {
+          ctx.save();
+          ctx.translate(this.x, this.y);
+          ctx.rotate(this.alpha * 20);
+          ctx.fillRect(-this.size/2, -this.size/2, this.size, this.size * 0.5);
+          ctx.restore();
+        } else if (this.shape === 'star') {
+          this.drawStar(this.x, this.y, 5, this.size * 1.6, this.size * 0.8);
+        } else if (this.shape === 'square') {
+          ctx.fillRect(this.x - this.size/2, this.y - this.size/2, this.size, this.size);
+        } else {
+          ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.shadowBlur = 0;
+      }
+      drawStar(cx, cy, spikes, outerRadius, innerRadius) {
+        let rot = Math.PI / 2 * 3;
+        let x = cx;
+        let y = cy;
+        let step = Math.PI / spikes;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy - outerRadius);
+        for (let i = 0; i < spikes; i++) {
+          x = cx + Math.cos(rot) * outerRadius;
+          y = cy + Math.sin(rot) * outerRadius;
+          ctx.lineTo(x, y);
+          rot += step;
+          x = cx + Math.cos(rot) * innerRadius;
+          y = cy + Math.sin(rot) * innerRadius;
+          ctx.lineTo(x, y);
+          rot += step;
+        }
+        ctx.lineTo(cx, cy - outerRadius);
+        ctx.closePath();
+        ctx.fill();
+      }
+      update() {
+        this.x += this.vx; this.y += this.vy;
+        this.vy += this.gravity;
+        this.alpha -= this.decay;
+      }
+    }
+
+    let lightningStrikes = [];
+    class Lightning {
+      constructor(startX, startY, endX, endY) {
+        this.points = [];
+        this.alpha = 1;
+        this.createPoints(startX, startY, endX, endY);
+      }
+      createPoints(sx, sy, ex, ey) {
+        const segments = 10;
+        let currX = sx;
+        let currY = sy;
+        this.points.push({x: sx, y: sy});
+        for (let i = 1; i < segments; i++) {
+          let tx = sx + (ex - sx) * (i / segments) + (Math.random() - 0.5) * 50;
+          let ty = sy + (ey - sy) * (i / segments) + (Math.random() - 0.5) * 50;
+          this.points.push({x: tx, y: ty});
+        }
+        this.points.push({x: ex, y: ey});
+      }
+      draw() {
+        ctx.globalAlpha = this.alpha;
+        ctx.strokeStyle = "#00f2fe";
+        ctx.lineWidth = 3;
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = "#00f2fe";
+        ctx.beginPath();
+        ctx.moveTo(this.points[0].x, this.points[0].y);
+        for (let i = 1; i < this.points.length; i++) {
+          ctx.lineTo(this.points[i].x, this.points[i].y);
+        }
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+      }
+      update() { this.alpha -= 0.1; }
+    }
+
+    function spawnParticles(x, y, color, count = 10, type = 'spark') {
+      const colors = ['#FFD700', '#FF1493', '#00BFFF', '#ADFF2F', '#FF4500', '#00FA9A', '#FFFFFF'];
+      for(let i=0; i<count; i++) {
+        const pColor = color || colors[Math.floor(Math.random() * colors.length)];
+        particles.push(new Particle(x, y, pColor, type));
+      }
+    }
+
+    function triggerConfetti() {
+      const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff'];
+      for(let i=0; i<35; i++) {
+        spawnParticles(Math.random() * canvas.width, -30, colors[Math.floor(Math.random()*colors.length)], 1, 'confetti');
+      }
+    }
+
+    function triggerFireworks(isGrand = false) {
+      const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff', '#ffffff'];
+      const fCount = isGrand ? 30 : 12;
+      for(let f=0; f<fCount; f++) {
+        setTimeout(() => {
+          const x = Math.random() * canvas.width;
+          const y = Math.random() * (canvas.height/1.5);
+          spawnParticles(x, y, null, isGrand ? 250 : 100, isGrand ? 'grand-finale' : 'shiny');
+          if (isGrand) playSound('special-match', Math.random() + 0.5);
+        }, f * (isGrand ? 150 : 250));
+      }
+    }
+
+    function animateLoop() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (isModalOpen && Math.random() < 0.25) triggerConfetti();
+      
+      particles = particles.filter(p => p.alpha > 0);
+      particles.forEach(p => { p.update(); p.draw(); });
+
+      lightningStrikes = lightningStrikes.filter(l => l.alpha > 0);
+      lightningStrikes.forEach(l => { l.update(); l.draw(); });
+
+      requestAnimationFrame(animateLoop);
+    }
+    animateLoop();
+
+    // Game Logic
+    function initGrid() {
+      grid = [];
+      for(let r=0; r<ROWS; r++) {
+        let row = [];
+        for(let c=0; c<COLS; c++) row.push({ r, c, type: randCandy(row) });
+        grid.push(row);
+      }
+      removeInitialMatches();
+      renderBoard();
+    }
+
+    function randCandy(existingRow = []) {
+      const r = Math.random();
+      
+      // Determine if a Wild is already present in this generation set to prevent 2 at once
+      const hasWild = existingRow.some(cell => cell.type === WILD_1 || cell.type === WILD_2);
+      
+      // Candy All (Wild 1)
+      const wild1Prob = hasWild ? 0 : Math.min(0.06, 0.02 + (currentLevel * 0.006));
+      
+      // Candy All 2 (Wild 2): Level 3+
+      let wild2Prob = 0;
+      if (currentLevel >= 3 && !hasWild) {
+        wild2Prob = Math.min(0.03, 0.008 + ((currentLevel - 3) * 0.004));
+      }
+
+      // Tier Two Candies (Candy11-66): Level 3+
+      let tierTwoProb = 0;
+      if (currentLevel >= 3) {
+        tierTwoProb = Math.min(0.05, 0.01 + ((currentLevel - 3) * 0.005));
+      }
+      
+      if (r < wild1Prob) return WILD_1;
+      if (r < wild1Prob + wild2Prob) return WILD_2;
+      if (r < wild1Prob + wild2Prob + tierTwoProb) return tierTwoCandies[Math.floor(Math.random() * 6)];
+      
+      return regularCandies[Math.floor(Math.random()*regularCandies.length)];
+    }
+
+    function removeInitialMatches() {
+      let hasMatches = true;
+      while(hasMatches) {
+        hasMatches = false;
+        const matches = findAllMatches();
+        if(matches.length > 0) {
+          hasMatches = true;
+          matches.forEach(m => m.forEach(cell => grid[cell.r][cell.c].type = randCandy()));
+        }
+      }
+    }
+
+    function renderBoard() {
+      boardEl.innerHTML = '';
+      for(let r=0; r<ROWS; r++) {
+        for(let c=0; c<COLS; c++) {
+          const cellData = grid[r][c];
+          const cellEl = document.createElement('div');
+          cellEl.className = 'cell';
+          cellEl.dataset.r = r;
+          cellEl.dataset.c = c;
+          if(selected && selected.r === r && selected.c === c) cellEl.classList.add('selected');
+          const img = document.createElement('img');
+          img.src = cellData.type;
+          img.className = 'candy-img';
+          img.onerror = function() { this.style.opacity = '0.5'; };
+          cellEl.appendChild(img);
+          cellEl.onmousedown = (e) => startMove(r, c, e);
+          cellEl.ontouchstart = (e) => startMove(r, c, e.touches[0]);
+          boardEl.appendChild(cellEl);
+        }
+      }
+    }
+
+    function startMove(r, c, e) {
+      initAudio();
+      if(isAnimating) return;
+      selected = grid[r][c];
+      isDragging = true;
+      renderBoard();
+    }
+
+    function handleMove(e) {
+      if(!isDragging || !selected) return;
+      const touch = e.touches ? e.touches[0] : e;
+      const target = document.elementFromPoint(touch.clientX, touch.clientY);
+      if(!target) return;
+      const cell = target.closest('.cell');
+      if(!cell) return;
+      const r = parseInt(cell.dataset.r);
+      const c = parseInt(cell.dataset.c);
+      if(r !== selected.r || c !== selected.c) {
+        const dr = Math.abs(selected.r - r);
+        const dc = Math.abs(selected.c - c);
+        if((dr === 1 && dc === 0) || (dr === 0 && dc === 1)) {
+          isDragging = false;
+          executeSwap(selected.r, selected.c, r, c);
+        }
+      }
+    }
+
+    window.onmousemove = handleMove;
+    window.ontouchmove = handleMove;
+    window.onmouseup = () => { isDragging = false; };
+    window.ontouchend = () => { isDragging = false; };
+
+    async function executeSwap(r1, c1, r2, c2) {
+      isAnimating = true;
+      playSound('swap');
+      const a = grid[r1][c1];
+      const b = grid[r2][c2];
+      const rectA = boardEl.children[r1 * COLS + c1].getBoundingClientRect();
+      const rectB = boardEl.children[r2 * COLS + c2].getBoundingClientRect();
+      await swapData(a, b);
+      const matches = findAllMatches();
+      if(matches.length > 0) {
+        movesLeft--;
+        spawnParticles((rectA.left + rectB.left)/2 + rectA.width/2, (rectA.top + rectB.top)/2 + rectA.height/2, '#FFFFFF', 8, 'small');
+        updateUI();
+        await resolveMatches();
+      } else {
+        await swapData(a, b);
+      }
+      selected = null;
+      isAnimating = false;
+      renderBoard();
+      checkGameStatus();
+    }
+
+    function swapData(a, b) {
+      return new Promise(resolve => {
+        const t = a.type;
+        a.type = b.type;
+        b.type = t;
+        setTimeout(resolve, 200);
+      });
+    }
+
+    function isMatch(t1, t2) {
+      if (t1 === WILD_1 || t2 === WILD_1 || t1 === WILD_2 || t2 === WILD_2) return true;
+      const clean1 = t1.replace('11', '1').replace('22', '2').replace('33', '3').replace('44', '4').replace('55', '5').replace('66', '6');
+      const clean2 = t2.replace('11', '1').replace('22', '2').replace('33', '3').replace('44', '4').replace('55', '5').replace('66', '6');
+      return clean1 === clean2;
+    }
+
+    function findAllMatches() {
+      let all = [];
+      for(let r=0; r<ROWS; r++) {
+        for(let c=0; c<COLS-2; c++) {
+          let m = [grid[r][c]];
+          let baseType = grid[r][c].type;
+          for(let k=c; k<COLS; k++) {
+            if(grid[r][k].type !== WILD_1 && grid[r][k].type !== WILD_2) {
+              baseType = grid[r][k].type;
+              break;
+            }
+          }
+          for(let k=c+1; k<COLS; k++) {
+            if (isMatch(grid[r][k].type, baseType)) m.push(grid[r][k]);
+            else break;
+          }
+          if(m.length >= 3) { all.push(m); c += m.length-1; }
+        }
+      }
+      for(let c=0; c<COLS; c++) {
+        for(let r=0; r<ROWS-2; r++) {
+          let m = [grid[r][c]];
+          let baseType = grid[r][c].type;
+          for(let k=r; k<ROWS; k++) {
+            if(grid[k][c].type !== WILD_1 && grid[k][c].type !== WILD_2) {
+              baseType = grid[k][c].type;
+              break;
+            }
+          }
+          for(let k=r+1; k<ROWS; k++) {
+            if (isMatch(grid[k][c].type, baseType)) m.push(grid[k][c]);
+            else break;
+          }
+          if(m.length >= 3) { all.push(m); r += m.length-1; }
+        }
+      }
+      return all;
+    }
+
+    async function resolveMatches() {
+      let mult = 1;
+      let combo = 0;
+      while(true) {
+        const matches = findAllMatches();
+        if(matches.length === 0) break;
+        let remove = [];
+        matches.forEach(m => {
+          m.forEach(cell => { if(!remove.find(x => x.r === cell.r && x.c === cell.c)) remove.push(cell); });
+        });
+
+        let bonus = 1;
+        let hasSpecial = false;
+        let hasMassive = false;
+
+        remove.forEach(cell => {
+           const type = grid[cell.r][cell.c].type;
+           if (type === WILD_1) { bonus += 2.5; hasSpecial = true; }
+           if (type === WILD_2) { bonus += 6.0; hasMassive = true; }
+           if (tierTwoCandies.includes(type)) { bonus += 4.0; hasSpecial = true; }
+        });
+
+        score += Math.floor(remove.length * 100 * mult * bonus);
+        
+        if (hasMassive) {
+            playSound('lightning');
+            // Trigger lightning to random targets
+            remove.forEach(cell => {
+                if (grid[cell.r][cell.c].type === WILD_2) {
+                    const rect = boardEl.children[cell.r * COLS + cell.c].getBoundingClientRect();
+                    for(let i=0; i<8; i++) {
+                        const targetR = Math.floor(Math.random() * ROWS);
+                        const targetC = Math.floor(Math.random() * COLS);
+                        const targetRect = boardEl.children[targetR * COLS + targetC].getBoundingClientRect();
+                        lightningStrikes.push(new Lightning(rect.left + rect.width/2, rect.top + rect.height/2, targetRect.left + targetRect.width/2, targetRect.top + targetRect.height/2));
+                        // Clear these random hits too
+                        grid[targetR][targetC].type = null;
+                        spawnParticles(targetRect.left + targetRect.width/2, targetRect.top + targetRect.height/2, '#00f2fe', 20, 'shiny');
+                    }
+                }
+            });
+        } else if (hasSpecial) playSound('special-match', 1.2);
+        else playSound('match', 1 + (combo * 0.1));
+
+        updateUI();
+        
+        remove.forEach(cell => {
+          const el = boardEl.children[cell.r * COLS + cell.c];
+          el.classList.add('pop-out');
+          const rect = el.getBoundingClientRect();
+          const type = grid[cell.r][cell.c].type;
+          
+          if (type === WILD_2) {
+              spawnParticles(rect.left + rect.width/2, rect.top + rect.height/2, '#FFFFFF', 100, 'massive');
+          } else if (type === WILD_1 || tierTwoCandies.includes(type)) {
+              spawnParticles(rect.left + rect.width/2, rect.top + rect.height/2, null, 60, 'shiny');
+          } else {
+              spawnParticles(rect.left + rect.width/2, rect.top + rect.height/2, null, 12, 'small');
+          }
+        });
+        
+        await new Promise(r => setTimeout(r, 300));
+        remove.forEach(cell => { if(grid[cell.r][cell.c]) grid[cell.r][cell.c].type = null; });
+        applyGravity();
+        renderBoard();
+        await new Promise(r => setTimeout(r, 200));
+        mult++;
+        combo++;
+      }
+    }
+
+    function applyGravity() {
+      for(let c=0; c<COLS; c++) {
+        let spot = ROWS-1;
+        for(let r=ROWS-1; r>=0; r--) {
+          if(grid[r][c].type) {
+            if(r !== spot) { grid[spot][c].type = grid[r][c].type; grid[r][c].type = null; }
+            spot--;
+          }
+        }
+        for(let r=spot; r>=0; r--) {
+            grid[r][c].type = randCandy(grid[r]);
+        }
+      }
+    }
+
+    function updateUI() {
+      scoreEl.innerText = score.toLocaleString();
+      movesEl.innerText = movesLeft;
+      levelEl.innerText = currentLevel;
+      targetEl.innerText = targetPoints.toLocaleString();
+      progressBar.style.width = Math.min(100, (score/targetPoints)*100) + '%';
+    }
+
+    function checkGameStatus() {
+      if(score >= targetPoints) levelUp();
+      else if(movesLeft <= 0) gameOver();
+    }
+
+    function levelUp() {
+      if (currentLevel >= 10) {
+          triggerFireworks(true);
+          setTimeout(() => {
+              showModal("GRAND MASTER!", "You have conquered all 10 levels of the Candy Realm. A monumental achievement!", "Restart Legend");
+          }, 3000);
+      } else {
+          triggerFireworks(false);
+          playSound('victory');
+          showModal("LEVEL UP!", `Level ${currentLevel} complete. Prepare for Level ${currentLevel+1}.`, "Advance");
+      }
+    }
+
+    function gameOver() {
+      showModal("JOURNEY PAUSED", "Re-embark to find your path once more.", "Restart Journey");
+      currentLevel = 1; score = 0; targetPoints = 15000; movesLeft = 80;
+    }
+
+    function showModal(title, msg, btnText) {
+      isModalOpen = true;
+      document.getElementById('modalTitle').innerText = title;
+      document.getElementById('modalMsg').innerText = msg;
+      document.getElementById('modalScore').innerText = score.toLocaleString();
+      document.getElementById('modalBtn').innerText = btnText;
+      document.getElementById('gameModal').style.display = 'flex';
+    }
+
+    document.getElementById('modalBtn').onclick = () => {
+      isModalOpen = false;
+      document.getElementById('gameModal').style.display = 'none';
+      if (score >= targetPoints) {
+          if (currentLevel >= 10) {
+              currentLevel = 1; score = 0; targetPoints = 15000; movesLeft = 80;
+          } else {
+              currentLevel++;
+              targetPoints = Math.floor(targetPoints * 2.2); 
+              movesLeft = 80 + (currentLevel * 5);
+          }
+      }
+      initGrid(); updateUI();
+    };
+
+    document.getElementById('newGameBtn').onclick = () => {
+      score = 0; movesLeft = 80; currentLevel = 1; targetPoints = 15000;
+      initGrid(); updateUI();
+    };
+
+    document.getElementById('shuffleBtn').onclick = () => {
+      if(movesLeft > 0) { 
+        movesLeft--; 
+        initGrid(); 
+        updateUI();
+        playSound('swap');
+        spawnParticles(canvas.width/2, canvas.height/2, null, 30, 'shiny');
+      }
+    };
+
+    window.onload = initGrid;
+  </script>
+</body>
+</html>
